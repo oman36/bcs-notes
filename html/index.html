@@ -15,11 +15,22 @@
             crossorigin="anonymous"></script>
     <style>
         .chart-wrapper {
+            position: relative;
             display: inline-block;
-            height: 450px;
+            height: 475px;
             width: 900px;
-            color: chocolate;
-            margin: 0 0 30px 0;
+            min-height: 475px;
+            min-width: 900px;
+            max-height: 475px;
+            max-width: 900px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        h3 {
+            position: absolute;
+            top: 0;
+            right: 0;
+            margin: 0 20px 0  0;
         }
     </style>
 </head>
@@ -43,7 +54,7 @@
     ];
 
     const addDays = function (date, days) {
-        new Date(date.valueOf());
+        date = new Date(date.valueOf());
         date.setDate(date.getDate() + days);
         return date;
     }
@@ -118,17 +129,16 @@
     }
 
     /***
+     * @param {HTMLDivElement} div
      * @param {string} title
      * @param {number[]} levels
      * @param {string[]} dates
      * @param {number[][]}values_sets
      * @param {string[]} names
      * @param {string[]} fixes
+     * @param {Date} end
      */
-    function addChart(title, levels, dates, values_sets, names, fixes) {
-        const div = document.createElement('div');
-        div.classList.add('chart-wrapper')
-
+    function addChart(div, title, levels, dates, values_sets, names, fixes, end) {
         const min = document.createElement('input');
         const max = document.createElement('input');
         for (const input of [min, max]) {
@@ -142,17 +152,20 @@
 
         const ctx = document.createElement('canvas');
         div.append(ctx);
-        CHARTS.append(div);
         let pos = 0;
-        const labels = dates.map(d => Date.parse(d));
-        min.value = dates[0];
-        max.value = dates[dates.length - 1];
-        // const labels = dates;
+        const labels = dates.map(d => new Date(Date.parse(d)));
+        let last_label = labels[labels.length - 1];
+        let future_days = (end - last_label) / 1000 / 24 / 60 / 60;
+        for (let add of Array(future_days).keys()) {
+            labels.push(addDays(last_label, add));
+        }
+        min.value = addDays(new Date(), -128).toISOString().slice(0, 10);
+        max.value = addDays(new Date(), 128).toISOString().slice(0, 10);
         const datasets = [];
         for (const [i, data] of Object.entries(values_sets)) {
             datasets.push({
                 label: names[i],
-                data: data,
+                data: [...data, ...Array(future_days)],
                 type: 'line',
                 borderColor: COLORS[i],
                 borderWidth: 0,
@@ -176,14 +189,21 @@
         }
         datasets.push({
             label: 'Fix days',
-            data: dates.map(d => fixes.indexOf(d) === -1 ? 0 : 100),
+            display: false,
+            data: labels.map(
+                l => fixes.indexOf(l.toISOString().slice(0, 10)) === -1 ?
+                    null : l
+            ),
             type: 'bar',
             borderColor: 'rgba(128, 128, 128, 1)',
-            borderWidth: 1,
-            pointStyle: 'none',
+            borderWidth: 2,
+            pointStyle: 'star',
             fill: false,
             order: pos++,
-        },)
+            xAxisID: 'fix-days',
+            yAxisID: 'hidden',
+        })
+
         const chart = new Chart(
             ctx,
             {
@@ -191,44 +211,87 @@
                 data: {labels: labels, datasets: datasets},
                 options: {
                     title: {
-                        display: true,
+                        display: false,
                         text: title,
                     },
                     legend: {
                         position: 'right',
                     },
                     scales: {
-                        xAxes: [{
-                            type: 'time',
-                            distribution: 'series',
-                            bounds: 'ticks',
-                            time: {
-                                unit: 'day',
-                            },
-                            ticks: {
-                                steps: 10,
-                                min: addDays(new Date(), -365),
-                            },
-                        }],
-                        yAxes: [{
-                            type: 'linear',
-                            ticks: {
-                                callback: function (value, b, c) {
-                                    return value + '%'
+                        xAxes: [
+                            {
+                                display: false,
+                                type: 'time',
+                                distribution: 'series',
+                                bounds: 'ticks',
+                                time: {
+                                    unit: 'day',
+                                },
+                                gridLines: {
+                                    display: false,
+                                },
+                                ticks: {
+                                    min: min.value,
+                                    max: max.value,
+                                    minRotation: 90,
+                                    maxRotation: 90,
                                 },
                             },
-                        }]
+                            {
+                                id: 'fix-days',
+                                type: 'time',
+                                distribution: 'series',
+                                bounds: 'data',
+                                time: {
+                                    unit: 'day',
+                                },
+                                ticks: {
+                                    min: min.value,
+                                    max: max.value,
+                                    source: 'labels',
+                                    minRotation: 90,
+                                    maxRotation: 90,
+                                    callback: function (value, i, values) {
+                                        const isoDate = (new Date(values[i].value))
+                                            .toISOString()
+                                            .slice(0, 10);
+                                        if (fixes.indexOf(isoDate) !== -1) {
+                                            return isoDate;
+                                        }
+                                    },
+                                },
+                                weight: 1,
+                            },
+                        ],
+                        yAxes: [
+                            {
+                                type: 'linear',
+                                ticks: {
+                                    callback: function (value, b, c) {
+                                        return value + '%'
+                                    },
+                                },
+                            },
+                            {
+                                id: 'hidden',
+                                display: false,
+                            },
+                        ]
                     },
                 },
             },
         );
         CHARTS_ENTITIES[title] = chart;
         min.onchange = (e) => {
-            chart.config.options.scales["xAxes"][0].ticks.min = min.value;
+            const xAxes = chart.config.options.scales["xAxes"];
+            xAxes[0].ticks.min = min.value;
+            xAxes[xAxes.length - 1].ticks.min = min.value;
             chart.update();
         }
         max.onchange = (e) => {
-            chart.config.options.scales["xAxes"][0].ticks.max = max.value;
+            const xAxes = chart.config.options.scales["xAxes"];
+            xAxes[0].ticks.max = max.value;
+            xAxes[xAxes.length - 1].ticks.max = max.value;
             chart.update();
         }
     }
@@ -255,6 +318,12 @@
      * @return {Promise<void>}
      */
     async function makeChart(nota) {
+        const div = document.createElement('div');
+        div.classList.add('chart-wrapper');
+        const h3 = document.createElement('h3');
+        h3.innerText = nota.name;
+        div.appendChild(h3);
+        CHARTS.appendChild(div);
         let labels = []
         let values = []
         let fixDateString = nota.fixDate.toISOString().slice(0, 10);
@@ -277,7 +346,7 @@
                 if (!data.timestamps || i >= data.timestamps.length ||
                     day < data.timestamps[i]
                 ) {
-                    ticker_values.push(ticker_values[ticker_values.length - 1] || 0);
+                    ticker_values.push(ticker_values[ticker_values.length - 1] || null);
                 } else if (data.timestamps[i] === day) {
                     if (fixDateString === day) {
                         console.log(day, tickerInfo.ticker.code, data.values[i], tickerInfo.startValue)
@@ -289,12 +358,14 @@
             values.push(ticker_values);
         }
         addChart(
+            div,
             nota.name,
             nota.levels,
             days,
             values,
             labels,
             [fixDateString, ...nota.dateSets.map(s => s.fix.toISOString().slice(0, 10))],
+            nota.dateSets[nota.dateSets.length - 1].end,
         );
     }
 </script>
