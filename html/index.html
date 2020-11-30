@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ноты</title>
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.css"
+          integrity="sha512-/zs32ZEJh+/EO2N1b0PEdoA10JkdC3zJ8L5FTiQu82LR9S/rOQNfQN7U59U9BC12swNeRAz3HSzIL2vpp4fv3w=="
+          crossorigin="anonymous"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"
+            integrity="sha512-d9xgZrVZpmmQlfonhQUvTR7lMPtO7NkZMkA0ABN3PHCbKA5nqylQ/yWlFAyY6hYgdF1Qh6nYiuADWwKB4C2WSw=="
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.bundle.min.js"
+            integrity="sha512-SuxO9djzjML6b9w9/I07IWnLnQhgyYVSpHZx0JV97kGBfTIsUYlWflyuW4ypnvhBrslz1yJ3R+S14fdCWmSmSA=="
+            crossorigin="anonymous"></script>
+    <style>
+        .chart-wrapper {
+            display: inline-block;
+            height: 450px;
+            width: 900px;
+            color: chocolate;
+            margin: 0 0 30px 0;
+        }
+    </style>
+</head>
+<body>
+<div id="charts"></div>
+<script>
+    const CHARTS = document.getElementById('charts');
+    const CHARTS_ENTITIES = {}
+    const STOCKS = {
+        yahoo: 'yahoo',
+        // piter: 'SPBEX',
+        moscow: 'moex',
+    }
+    const COLORS = [
+        'rgba(255, 159, 64, 1)',
+        'rgba(204, 64, 255, 1)',
+        'rgba(255, 64, 64, 1)',
+        'rgba(170, 39, 39, 1)',
+        'rgba(170, 126, 39, 1)',
+        'rgba(35, 149, 60, 1)',
+    ];
+
+    const addDays = function (date, days) {
+        new Date(date.valueOf());
+        date.setDate(date.getDate() + days);
+        return date;
+    }
+
+    function getDates(startDate, stopDate) {
+        const dateArray = [];
+        let currentDate = new Date(startDate);
+        while (currentDate <= stopDate) {
+            dateArray.push(new Date(currentDate));
+            currentDate = addDays(currentDate, 1);
+        }
+        return dateArray;
+    }
+
+
+    class NotaDateSet {
+        /**
+         * @param {string} start
+         * @param {string} end
+         * @param {string} fix
+         * @param {string} last_buy
+         * @param {string} pay_day
+         */
+        constructor(start, end, fix, last_buy, pay_day) {
+            this.start = new Date(Date.parse(start));
+            this.end = new Date(Date.parse(end));
+            this.fix = new Date(Date.parse(fix));
+            this.last_buy = new Date(Date.parse(last_buy));
+            this.pay_day = new Date(Date.parse(pay_day));
+        }
+    }
+
+    class Nota {
+        /**
+         * @param {string} name
+         * @param {number[]} levels
+         * @param {Date} start
+         * @param {Date} fixDate
+         * @param {NotaDateSet[]} dateSets
+         * @param {TickerInfo[]} tickers
+         */
+        constructor(name, levels, start, fixDate, dateSets, tickers) {
+            this.name = name;
+            this.levels = levels;
+            this.start = start;
+            this.fixDate = fixDate;
+            this.dateSets = dateSets;
+            this.tickers = tickers;
+        }
+    }
+
+    class Ticker {
+        /**
+         * @param {string} stock
+         * @param {string} code
+         */
+        constructor(stock, code) {
+            this.stock = stock;
+            this.code = code;
+        }
+    }
+
+    class TickerInfo {
+        /**
+         * @param {Ticker} ticker
+         * @param {number} startValue
+         */
+        constructor(ticker, startValue) {
+            this.ticker = ticker;
+            this.startValue = startValue;
+        }
+    }
+
+    /***
+     * @param {string} title
+     * @param {number[]} levels
+     * @param {string[]} dates
+     * @param {number[][]}values_sets
+     * @param {string[]} names
+     * @param {string[]} fixes
+     */
+    function addChart(title, levels, dates, values_sets, names, fixes) {
+        const div = document.createElement('div');
+        div.classList.add('chart-wrapper')
+
+        const min = document.createElement('input');
+        const max = document.createElement('input');
+        for (const input of [min, max]) {
+            input.setAttribute('type', 'date');
+            div.appendChild(input);
+            input.style.marginRight = '20px';
+        }
+        for (const month_len of [1, 3, 6, 12]) {
+            const tes = 2; // todo make buttons 1m, 3m, 6m, 12m
+        }
+
+        const ctx = document.createElement('canvas');
+        div.append(ctx);
+        CHARTS.append(div);
+        let pos = 0;
+        const labels = dates.map(d => Date.parse(d));
+        min.value = dates[0];
+        max.value = dates[dates.length - 1];
+        // const labels = dates;
+        const datasets = [];
+        for (const [i, data] of Object.entries(values_sets)) {
+            datasets.push({
+                label: names[i],
+                data: data,
+                type: 'line',
+                borderColor: COLORS[i],
+                borderWidth: 0,
+                pointRadius: 0,
+                pointHoverRadius: 1,
+                fill: false,
+                order: pos++,
+            });
+        }
+        for (const level of levels) {
+            datasets.push({
+                label: `${level}%`,
+                data: labels.map(x => level),
+                backgroundColor: 'rgba(64, 64, 128, 0.1)',
+                borderColor: 'rgba(64, 64, 128, 1)',
+                borderWidth: 1,
+                pointStyle: 'line',
+                fill: true,
+                order: pos++,
+            })
+        }
+        datasets.push({
+            label: 'Fix days',
+            data: dates.map(d => fixes.indexOf(d) === -1 ? 0 : 100),
+            type: 'bar',
+            borderColor: 'rgba(128, 128, 128, 1)',
+            borderWidth: 1,
+            pointStyle: 'none',
+            fill: false,
+            order: pos++,
+        },)
+        const chart = new Chart(
+            ctx,
+            {
+                type: 'line',
+                data: {labels: labels, datasets: datasets},
+                options: {
+                    title: {
+                        display: true,
+                        text: title,
+                    },
+                    legend: {
+                        position: 'right',
+                    },
+                    scales: {
+                        xAxes: [{
+                            type: 'time',
+                            distribution: 'series',
+                            bounds: 'ticks',
+                            time: {
+                                unit: 'day',
+                            },
+                            ticks: {
+                                steps: 10,
+                                min: addDays(new Date(), -365),
+                            },
+                        }],
+                        yAxes: [{
+                            type: 'linear',
+                            ticks: {
+                                callback: function (value, b, c) {
+                                    return value + '%'
+                                },
+                            },
+                        }]
+                    },
+                },
+            },
+        );
+        CHARTS_ENTITIES[title] = chart;
+        min.onchange = (e) => {
+            chart.config.options.scales["xAxes"][0].ticks.min = min.value;
+            chart.update();
+        }
+        max.onchange = (e) => {
+            chart.config.options.scales["xAxes"][0].ticks.max = max.value;
+            chart.update();
+        }
+    }
+
+    /**
+     * @param {Ticker} ticker
+     * @param {?Date} from_date
+     * @return {Promise<void>}
+     */
+    async function get(ticker, from_date) {
+        const url = new URL(
+            `/api/data/${ticker.stock}/${ticker.code}`,
+            window.location.href,
+        );
+        const params = {from: from_date.toISOString().slice(0, 10)};
+        Object.keys(params)
+            .forEach(key => url.searchParams.append(key, params[key]))
+        const response = await fetch(url);
+        return await response.json();
+    }
+
+    /**
+     * @param {Nota} nota
+     * @return {Promise<void>}
+     */
+    async function makeChart(nota) {
+        let labels = []
+        let values = []
+        let fixDateString = nota.fixDate.toISOString().slice(0, 10);
+        let days = getDates(nota.start, new Date())
+            .map(d => d.toISOString().slice(0, 10))
+        for (const tickerInfo of nota.tickers) {
+            /**
+             * @var {object} data
+             * @property {string[]} data.timestamps
+             * @property {number[]} data.values
+             */
+            const data = await get(tickerInfo.ticker, nota.start);
+            labels.push(tickerInfo.ticker.code);
+            let i = 0;
+            let ticker_values = [];
+            for (let day of days) {
+                while (i < data.timestamps.length && data.timestamps[i] < day) {
+                    i++;
+                }
+                if (!data.timestamps || i >= data.timestamps.length ||
+                    day < data.timestamps[i]
+                ) {
+                    ticker_values.push(ticker_values[ticker_values.length - 1] || 0);
+                } else if (data.timestamps[i] === day) {
+                    if (fixDateString === day) {
+                        console.log(day, tickerInfo.ticker.code, data.values[i], tickerInfo.startValue)
+                    }
+                    ticker_values.push(data.values[i] / tickerInfo.startValue * 100);
+                    i++;
+                }
+            }
+            values.push(ticker_values);
+        }
+        addChart(
+            nota.name,
+            nota.levels,
+            days,
+            values,
+            labels,
+            [fixDateString, ...nota.dateSets.map(s => s.fix.toISOString().slice(0, 10))],
+        );
+    }
+</script>
+<script>
+    nota104DateSets = [
+        new NotaDateSet('2020-07-24', '2020-11-24', '2020-11-17', '2020-11-18', '2020-12-08'),
+        new NotaDateSet('2020-11-24', '2021-02-24', '2021-02-17', '2021-02-18', '2021-03-10'),
+        new NotaDateSet('2021-02-24', '2021-05-24', '2021-05-17', '2021-05-18', '2021-06-07'),
+        new NotaDateSet('2021-05-24', '2021-08-24', '2021-08-17', '2021-08-18', '2021-09-07'),
+        new NotaDateSet('2021-08-24', '2021-11-24', '2021-11-17', '2021-11-18', '2021-12-08'),
+        new NotaDateSet('2021-11-24', '2022-02-24', '2022-02-17', '2022-02-16', '2022-03-10'),
+        new NotaDateSet('2022-02-24', '2022-05-24', '2022-05-17', '2022-05-18', '2022-06-07'),
+        new NotaDateSet('2022-05-24', '2022-08-24', '2022-08-17', '2022-08-18', '2022-09-07'),
+        new NotaDateSet('2022-08-24', '2022-11-24', '2022-11-17', '2022-11-18', '2022-12-08'),
+        new NotaDateSet('2022-11-24', '2023-02-24', '2023-02-17', '2023-02-16', '2023-03-10'),
+        new NotaDateSet('2023-02-24', '2023-05-24', '2023-05-17', '2023-05-18', '2023-06-07'),
+        new NotaDateSet('2023-05-24', '2023-08-24', '2023-08-17', '2023-08-18', '2023-09-07'),
+        new NotaDateSet('2023-08-24', '2023-11-24', '2023-11-17', '2023-11-17', '2023-12-08'),
+        new NotaDateSet('2023-11-24', '2024-02-24', '2024-02-17', '2024-02-20', '2024-03-09'),
+        new NotaDateSet('2024-02-24', '2024-05-24', '2024-05-17', '2024-05-20', '2024-06-07'),
+        new NotaDateSet('2024-05-24', '2024-08-24', '2024-08-17', '2024-08-20', '2024-09-07'),
+        new NotaDateSet('2024-08-24', '2024-11-24', '2024-11-17', '2024-11-19', '2024-12-08'),
+        new NotaDateSet('2024-11-24', '2025-02-24', '2025-02-17', '2025-02-18', '2025-03-10'),
+        new NotaDateSet('2025-02-24', '2025-05-24', '2025-05-17', '2025-05-20', '2025-06-07'),
+        new NotaDateSet('2025-05-24', '2025-08-24', '2025-08-17', '2025-08-19', '2025-09-07'),
+        new NotaDateSet('2025-08-24', '2025-11-24', '2025-11-17', '2025-11-18', '2025-12-08'),
+    ];
+    const nota104 = new Nota(
+        'Нота 104 Актуальные тенденции',
+        [100, 70, 65],
+        new Date(Date.parse('2020-07-24')),
+        new Date(Date.parse('2020-08-24')),
+        nota104DateSets,
+        [
+            new TickerInfo(new Ticker(STOCKS.yahoo, '7974.T'), 57320),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'NFLX'), 488.81),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'COG'), 19.51),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'FFIV'), 136.19),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'OKTA'), 205.12),
+        ],
+    );
+
+    nota69DateSets = [
+        new NotaDateSet('2020-07-24', '2020-11-24', '2019-12-10', '2019-12-11', '2019-12-31'),
+        new NotaDateSet('2020-11-24', '2021-02-24', '2020-03-09', '2020-03-10', '2020-03-30'),
+        new NotaDateSet('2021-02-24', '2021-05-24', '2020-06-09', '2020-06-10', '2020-06-30'),
+        new NotaDateSet('2021-05-24', '2021-08-24', '2020-09-09', '2020-09-10', '2020-09-30'),
+        new NotaDateSet('2021-08-24', '2021-11-24', '2020-12-10', '2020-12-11', '2020-12-31'),
+        new NotaDateSet('2021-11-24', '2022-02-24', '2021-03-09', '2021-03-10', '2021-03-30'),
+        new NotaDateSet('2022-02-24', '2022-05-24', '2021-06-09', '2021-06-10', '2021-06-30'),
+        new NotaDateSet('2022-05-24', '2022-08-24', '2021-09-09', '2021-09-10', '2021-09-30'),
+        new NotaDateSet('2022-08-24', '2022-11-24', '2021-12-10', '2021-12-11', '2021-12-31'),
+        new NotaDateSet('2022-11-24', '2023-02-24', '2022-03-09', '2022-03-10', '2022-03-30'),
+        new NotaDateSet('2023-02-24', '2023-05-24', '2022-06-09', '2022-06-10', '2022-06-30'),
+        new NotaDateSet('2023-05-24', '2023-08-24', '2022-09-09', '2022-09-10', '2022-09-30'),
+        new NotaDateSet('2023-08-24', '2023-11-24', '2022-12-10', '2022-12-11', '2022-12-31'),
+        new NotaDateSet('2023-11-24', '2024-02-24', '2023-03-09', '2023-03-10', '2023-03-30'),
+        new NotaDateSet('2024-02-24', '2024-05-24', '2023-06-09', '2023-06-10', '2023-06-30'),
+        new NotaDateSet('2024-05-24', '2024-08-24', '2023-09-09', '2023-09-10', '2023-09-30'),
+        new NotaDateSet('2024-08-24', '2024-11-24', '2023-12-10', '2023-12-11', '2023-12-31'),
+        new NotaDateSet('2024-11-24', '2025-02-24', '2024-03-09', '2024-03-10', '2024-03-30'),
+        new NotaDateSet('2025-02-24', '2025-05-24', '2024-06-09', '2024-06-10', '2024-06-30'),
+        new NotaDateSet('2025-05-24', '2025-08-24', '2024-09-09', '2024-09-10', '2024-09-30'),
+        new NotaDateSet('2025-08-24', '2025-11-24', '2024-12-09', '2024-12-10', '2024-12-30'),
+    ];
+    const nota69 = new Nota(
+        'Пятилетняя Купонная НОТА №69 USD',
+        [100, 65, 50],
+        new Date(Date.parse('2019-12-02')),
+        new Date(Date.parse('2019-12-30')),
+        nota69DateSets,
+        [
+            new TickerInfo(new Ticker(STOCKS.yahoo, '7974.T'), 43970),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'ABMD'), 167.29),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'COG'), 17.13),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'BIIB'), 296.01),
+            new TickerInfo(new Ticker(STOCKS.moscow, 'SBER'), 254.75),
+        ],
+    );
+
+    nota123DateSets = [
+        // new NotaDateSet('2020-07-24', '2020-11-24', '2020-10-31', '2020-11-01', '2020-11-21'),
+        new NotaDateSet('2020-11-24', '2021-02-24', '2021-01-31', '2021-02-01', '2021-02-21'),
+        new NotaDateSet('2021-02-24', '2021-05-24', '2021-04-30', '2021-05-01', '2021-05-21'),
+        new NotaDateSet('2021-05-24', '2021-08-24', '2021-07-31', '2021-08-01', '2021-08-21'),
+        new NotaDateSet('2021-08-24', '2021-11-24', '2021-10-31', '2021-11-01', '2021-11-21'),
+        new NotaDateSet('2021-11-24', '2022-02-24', '2022-01-31', '2022-02-01', '2022-02-21'),
+        new NotaDateSet('2022-02-24', '2022-05-24', '2022-04-30', '2022-05-01', '2022-05-21'),
+        new NotaDateSet('2022-05-24', '2022-08-24', '2022-07-31', '2022-08-01', '2022-08-21'),
+        new NotaDateSet('2022-08-24', '2022-11-24', '2022-10-31', '2022-11-01', '2022-11-21'),
+        new NotaDateSet('2022-11-24', '2023-02-24', '2023-01-31', '2023-02-01', '2023-02-21'),
+        new NotaDateSet('2023-02-24', '2023-05-24', '2023-04-30', '2023-05-01', '2023-05-21'),
+        new NotaDateSet('2023-05-24', '2023-08-24', '2023-07-31', '2023-08-01', '2023-08-21'),
+        new NotaDateSet('2023-08-24', '2023-11-24', '2023-10-31', '2023-11-01', '2023-11-21'),
+        new NotaDateSet('2023-11-24', '2024-02-24', '2024-01-31', '2024-02-01', '2024-02-21'),
+        new NotaDateSet('2024-02-24', '2024-05-24', '2024-04-30', '2024-05-01', '2024-05-21'),
+        new NotaDateSet('2024-05-24', '2024-08-24', '2024-07-31', '2024-08-01', '2024-08-21'),
+        new NotaDateSet('2024-08-24', '2024-11-24', '2024-10-31', '2024-11-01', '2024-11-21'),
+        new NotaDateSet('2024-11-24', '2025-02-24', '2025-01-31', '2025-02-01', '2025-02-21'),
+        new NotaDateSet('2025-02-24', '2025-05-24', '2025-04-30', '2025-05-01', '2025-05-21'),
+        new NotaDateSet('2025-05-24', '2025-08-24', '2025-07-31', '2025-08-01', '2025-08-21'),
+        new NotaDateSet('2025-08-24', '2025-11-24', '2025-10-31', '2025-11-01', '2025-11-21'),
+    ];
+    const nota123 = new Nota(
+        'Купонная нота №123 Динамичное развитие',
+        [130, 100, 65],
+        new Date(Date.parse('2020-10-27')),
+        new Date(Date.parse('2020-11-27')),
+        nota123DateSets,
+        [
+            new TickerInfo(new Ticker(STOCKS.yahoo, '8035.T'), 35210),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'UBER'), 50.72),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'REGN'), 514.05),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'TEAM'), 224),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'ZION'), 39.46),
+        ],
+    );
+    nota123DateSets = [
+        // new NotaDateSet('2020-07-24', '2020-11-24', '2020-10-31', '2020-11-01', '2020-11-21'),
+        new NotaDateSet('2020-11-24', '2021-02-24', '2021-01-31', '2021-02-01', '2021-02-21'),
+        new NotaDateSet('2021-02-24', '2021-05-24', '2021-04-30', '2021-05-01', '2021-05-21'),
+        new NotaDateSet('2021-05-24', '2021-08-24', '2021-07-31', '2021-08-01', '2021-08-21'),
+        new NotaDateSet('2021-08-24', '2021-11-24', '2021-10-31', '2021-11-01', '2021-11-21'),
+        new NotaDateSet('2021-11-24', '2022-02-24', '2022-01-31', '2022-02-01', '2022-02-21'),
+        new NotaDateSet('2022-02-24', '2022-05-24', '2022-04-30', '2022-05-01', '2022-05-21'),
+        new NotaDateSet('2022-05-24', '2022-08-24', '2022-07-31', '2022-08-01', '2022-08-21'),
+        new NotaDateSet('2022-08-24', '2022-11-24', '2022-10-31', '2022-11-01', '2022-11-21'),
+        new NotaDateSet('2022-11-24', '2023-02-24', '2023-01-31', '2023-02-01', '2023-02-21'),
+        new NotaDateSet('2023-02-24', '2023-05-24', '2023-04-30', '2023-05-01', '2023-05-21'),
+        new NotaDateSet('2023-05-24', '2023-08-24', '2023-07-31', '2023-08-01', '2023-08-21'),
+        new NotaDateSet('2023-08-24', '2023-11-24', '2023-10-31', '2023-11-01', '2023-11-21'),
+        new NotaDateSet('2023-11-24', '2024-02-24', '2024-01-31', '2024-02-01', '2024-02-21'),
+        new NotaDateSet('2024-02-24', '2024-05-24', '2024-04-30', '2024-05-01', '2024-05-21'),
+        new NotaDateSet('2024-05-24', '2024-08-24', '2024-07-31', '2024-08-01', '2024-08-21'),
+        new NotaDateSet('2024-08-24', '2024-11-24', '2024-10-31', '2024-11-01', '2024-11-21'),
+        new NotaDateSet('2024-11-24', '2025-02-24', '2025-01-31', '2025-02-01', '2025-02-21'),
+        new NotaDateSet('2025-02-24', '2025-05-24', '2025-04-30', '2025-05-01', '2025-05-21'),
+        new NotaDateSet('2025-05-24', '2025-08-24', '2025-07-31', '2025-08-01', '2025-08-21'),
+        new NotaDateSet('2025-08-24', '2025-11-24', '2025-10-31', '2025-11-01', '2025-11-21'),
+    ];
+    const nota123 = new Nota(
+        'Купонная нота №123 Динамичное развитие',
+        [130, 100, 65],
+        new Date(Date.parse('2020-10-27')),
+        new Date(Date.parse('2020-11-27')),
+        nota123DateSets,
+        [
+            new TickerInfo(new Ticker(STOCKS.yahoo, '8035.T'), 35210),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'UBER'), 50.72),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'REGN'), 514.05),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'TEAM'), 224),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'ZION'), 39.46),
+        ],
+    );
+    const notas = [
+        nota104,
+        nota69,
+        nota123,
+    ];
+    for (const nota of notas) {
+        makeChart(nota);
+    }
+</script>
+</body>
+</html>
