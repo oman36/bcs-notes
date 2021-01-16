@@ -152,11 +152,12 @@
         max.value = addDays(new Date(), 128).toISOString().slice(0, 10);
         for (const month_len of [1, 3, 6, 12]) {
             const button = document.createElement('button');
-            button.innerText = `${month_len}m`
+            button.innerText = `${month_len}m`;
             button.onclick = function (e) {
                 e.preventDefault();
-                min.value = addDays(new Date(), -month_len * 31).toISOString().slice(0, 10);
-                max.value = addDays(new Date(), 31).toISOString().slice(0, 10);
+                min.value = addDays(new Date(), -month_len * 31)
+                    .toISOString().slice(0, 10);
+                max.value = addDays(new Date(), 7).toISOString().slice(0, 10);
                 for (const d_el of [min, max]) {
                     const evt = document.createEvent("HTMLEvents");
                     evt.initEvent("change", false, true);
