@@ -157,6 +157,11 @@
                 e.preventDefault();
                 min.value = addDays(new Date(), -month_len * 31).toISOString().slice(0, 10);
                 max.value = addDays(new Date(), 31).toISOString().slice(0, 10);
+                for (const d_el of [min, max]) {
+                    const evt = document.createEvent("HTMLEvents");
+                    evt.initEvent("change", false, true);
+                    d_el.dispatchEvent(evt);
+                }
             }
             div.append(button)
         }
