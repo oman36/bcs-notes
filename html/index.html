@@ -110,10 +110,12 @@
         /**
          * @param {string} stock
          * @param {string} code
+         * @param {string?} fullName
          */
-        constructor(stock, code) {
+        constructor(stock, code, fullName) {
             this.stock = stock;
             this.code = code;
+            this.fullName = fullName || code;
         }
     }
 
@@ -336,7 +338,7 @@
              * @property {number[]} data.values
              */
             const data = await get(tickerInfo.ticker, nota.start);
-            labels.push(tickerInfo.ticker.code);
+            labels.push(`${tickerInfo.ticker.fullName}[${tickerInfo.ticker.code}]`);
             let i = 0;
             let ticker_values = [];
             for (let day of days) {
@@ -400,10 +402,10 @@
         new Date(Date.parse('2020-08-24')),
         nota104DateSets,
         [
-            new TickerInfo(new Ticker(STOCKS.yahoo, '7974.T'), 57320),
-            new TickerInfo(new Ticker(STOCKS.yahoo, 'NFLX'), 488.81),
-            new TickerInfo(new Ticker(STOCKS.yahoo, 'COG'), 19.51),
-            new TickerInfo(new Ticker(STOCKS.yahoo, 'FFIV'), 136.19),
+            new TickerInfo(new Ticker(STOCKS.yahoo, '7974.T', 'Nintendo Co., Ltd.'), 57320),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'NFLX', 'Netflix, Inc.'), 488.81),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'COG', 'Cabot Oil & Gas Corporation'), 19.51),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'FFIV', 'F5 Networks, Inc.'), 136.19),
             new TickerInfo(new Ticker(STOCKS.yahoo, 'OKTA'), 205.12),
         ],
     );
@@ -437,10 +439,10 @@
         new Date(Date.parse('2019-12-30')),
         nota69DateSets,
         [
-            new TickerInfo(new Ticker(STOCKS.yahoo, '7974.T'), 43970),
-            new TickerInfo(new Ticker(STOCKS.yahoo, 'ABMD'), 167.29),
-            new TickerInfo(new Ticker(STOCKS.yahoo, 'COG'), 17.13),
-            new TickerInfo(new Ticker(STOCKS.yahoo, 'BIIB'), 296.01),
+            new TickerInfo(new Ticker(STOCKS.yahoo, '7974.T', 'Nintendo Co., Ltd.'), 43970),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'ABMD', 'Abiomed, Inc.'), 167.29),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'COG', 'Cabot Oil & Gas Corporation'), 17.13),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'BIIB', 'Biogen Inc.'), 296.01),
             new TickerInfo(new Ticker(STOCKS.moscow, 'SBER'), 254.75),
         ],
     );
@@ -475,11 +477,11 @@
         new Date(Date.parse('2020-11-27')),
         nota123DateSets,
         [
-            new TickerInfo(new Ticker(STOCKS.yahoo, '8035.T'), 35210),
+            new TickerInfo(new Ticker(STOCKS.yahoo, '8035.T', 'Tokyo Electron Limited'), 35210),
             new TickerInfo(new Ticker(STOCKS.yahoo, 'UBER'), 50.72),
-            new TickerInfo(new Ticker(STOCKS.yahoo, 'REGN'), 514.05),
-            new TickerInfo(new Ticker(STOCKS.yahoo, 'TEAM'), 224),
-            new TickerInfo(new Ticker(STOCKS.yahoo, 'ZION'), 39.46),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'REGN', 'Regeneron Pharmaceuticals, Inc. '), 514.05),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'TEAM', 'Atlassian Corporation Plc'), 224),
+            new TickerInfo(new Ticker(STOCKS.yahoo, 'ZION', 'Zions Bancorporation, National Association'), 39.46),
         ],
     );
     const notas = [
