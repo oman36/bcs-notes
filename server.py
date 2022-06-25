@@ -85,8 +85,20 @@ async def get_yahoo(request: Request) -> web.Response:
     async with aiohttp.ClientSession() as session:
         async with session.get(url, params=params) as response:
             data = await response.json()
+            if response.status != 200:
+                return web.json_response({
+                    'status': 'error',
+                    'message': f'Yahoo returned status {response.status}',
+                    'content': data,
+                })
 
-    result = data['chart']['result'][0]
+    try:
+        result = data['chart']['result'][0]
+    except (KeyError, IndexError) as error:
+        raise ValueError(
+            f'Unexpected content (error {error!r}): {data}',
+        )
+
     return web.json_response(
         data={
             'timestamps': [
